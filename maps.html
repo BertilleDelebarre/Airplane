@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+  <title>Geo interpolator</title>
+</head>
+
+<style>
+body {
+  font-family: "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 14px;
+  color: #333;
+}
+
+
+/* .sphere {
+    fill: #A7DBD8;
+    stroke: #79A09E;
+  }
+
+.land {
+    fill: #E0E4CC;
+    stroke: #ACAF9F;
+    stroke-width: 1;
+  }
+
+.graticule {
+    fill: none;
+    stroke: #79A09E;
+    stroke-width: 1;
+    stroke-dasharray: 1,2;
+  } */
+
+</style>
+
+<body>
+<div class = "Center">Click to Center</div>
+<div class= "Animate">Click to Animate</div>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+
+<script>
+
+//Width and height
+var margin = {top: 50, right: 50, bottom: 50, left: 50}
+  , w = 900 // Use the window's width 
+  , h = 600; // Use the window's height
+
+  var state = {
+    x: 0,
+    y: 0,
+    scale: h / 2
+};
+
+var geojson;
+
+//Create SVG element
+var svg = d3.select("body")
+.append("svg")
+.attr("width", w)
+.attr("height", h);
+
+// Group g representing the sphere and in charge of interactivity
+var g = svg.append("g")
+
+var circle = g.append("circle")
+.attr("r", h/2)
+.attr("cx", w/2)
+.attr("cy", h/2)
+.attr("fill", "white")
+.attr("opacity", 1)
+.attr("stroke", "black")
+.attr("stroke-width", 3);
+
+g.on("wheel.zoom",function(){
+    var currScale = projection.scale();
+    var newScale = currScale - 0.8*d3.event.deltaY;
+    //var currTranslate = projection.translate();
+    //var coords = projection.invert([d3.event.offsetX, d3.event.offsetY]);
+    projection.scale(newScale);
+    circle.attr("r",newScale);
+    //var newPos = projection(coords);
+    //projection.translate([currTranslate[0] + (d3.event.offsetX - newPos[0]), currTranslate[1] + (d3.event.offsetY - newPos[1])]);
+    g.selectAll("path").attr("d", path);
+    line_circle
+      .attr("cx", function(d) { return projection([d.lon, d.lat])[0];})
+      .attr("cy", function(d) { return projection([d.lon, d.lat])[1];});
+})
+
+.call(d3.drag().on("drag", function(){
+    var currTranslate = projection.rotate();
+    projection.rotate([currTranslate[0] + 50/projection.scale()*d3.event.dx,
+                          currTranslate[1] - 50/projection.scale()*d3.event.dy,
+                          currTranslate[2]
+                        ]);
+    g.selectAll("path").attr("d", path);
+    line_circle
+      .attr("cx", function(d) { return projection([d.lon, d.lat])[0];})
+      .attr("cy", function(d) { return projection([d.lon, d.lat])[1];});
+}));
+
+//Projection of the map
+var projection = d3.geoOrthographic()
+.scale(state.scale)
+//.clipAngle(90)
+.translate([w / 2, h / 2]);
+
+var path = d3.geoPath()
+.projection(projection);
+
+var graticule = d3.geoGraticule();
+
+
+
+  
+// REQUEST DATA
+d3.json('ne_10m_admin_0_countries.json')
+ .then(function(json) {
+  geojson = json;
+  g.selectAll("path")
+	.data(geojson.features)
+    .enter()
+    .append("path")
+    .attr("d", path)
+    .attr("opacity", 0.3)
+    .attr("fill", "blue")
+    .attr("stroke", "white")
+})
+var flight;
+
+var pathLine = d3.line()
+.x(function(d) { return projection([d.lon, d.lat])[0]; })
+.y(function(d) { return projection([d.lon, d.lat])[1]; })
+.curve(d3.curveMonotoneX);
+
+d3.csv("Test1.csv")
+.then(function (csv) {
+  flight = csv;
+  console.log("a");
+
+  // console.log("a"); 
+  // svg.append("line")
+  //   .attr("class","line")
+  //   .attr("d",pathLine)
+  //   .attr("stroke","red")
+  //   .attr("stroke-width", 3);
+
+  line_circle = g.selectAll("circle")
+  .data(flight)
+  .enter()
+  .append("circle")
+  .attr("opacity", 0.4)
+  .attr("stroke", function(d) { return d.fill})
+  .attr("r", 1)
+  .attr("cx", function(d) { return projection([d.lon, d.lat])[0];})
+  .attr("cy", function(d) { return projection([d.lon, d.lat])[1];})
+
+  var Viz_center_x_min = d3.min(flight, function(d) { return parseFloat(d.lon)}),
+   Viz_center_x_max = d3.max(flight, function(d) { return parseFloat(d.lon)}),
+   Viz_center_x_mid = (Viz_center_x_min + Viz_center_x_max)/2,
+   Viz_center_y_min = d3.min(flight, function(d) { return parseFloat(d.lat)}),
+   Viz_center_y_max = d3.max(flight, function(d) { return parseFloat(d.lat)}),
+   Viz_center_y_mid = (Viz_center_y_min + Viz_center_y_max)/2,
+   Viz_rad = d3.max([(Viz_center_y_max - Viz_center_y_min), (Viz_center_x_max - Viz_center_x_min) ]);
+
+  function Viz_Center() {
+  d3.transition()
+  .delay(450)
+  .duration(1750)
+  .tween("rotate", function() {
+    var point = [Viz_center_x_mid, Viz_center_y_mid],
+        rotate = d3.interpolate(projection.rotate(), [-point[0], -point[1]]),
+        rescale = d3.interpolate(projection.scale(), (90/Viz_rad)*h/2);
+    return function(t) {
+      projection.rotate(rotate(t));
+      projection.scale(rescale(t));
+      circle.attr("r",rescale(t));
+      g.selectAll("path").attr("d", path);
+      line_circle
+      .attr("cx", function(d) { return projection([d.lon, d.lat])[0];})
+      .attr("cy", function(d) { return projection([d.lon, d.lat])[1];});
+    };
+  })
+  }
+
+  function Viz_Animate() {
+
+    var min_clock = d3.min(flight, function(d) { return parseFloat(d.clock);});
+
+    line_circle
+    .transition()
+    .duration(500)
+    .delay( function(d, i ) { return (d.clock-min_clock)/60/60*1000;})
+    .attr("r", 5)
+    .attr("opacity", 0)
+    .on("end", function(d) { 
+      d3.select(this)
+      .attr("r", 0.8)
+      .transition()
+      .duration(500)
+      .attr("opacity", 1)
+    })
+
+  };
+
+  Viz_Center();
+  //Viz_Animate();
+
+  d3.select(".Center")
+  .on("click", Viz_Center);
+
+  d3.select(".Animate")
+  .on("click", Viz_Animate);
+});
+
+
+
+svg.call(d3.zoom());
+</script>
+</body>
+</html>
